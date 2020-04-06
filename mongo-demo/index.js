@@ -1,28 +1,77 @@
 const mongoose = require('mongoose')
 
-mongoose.connect('mongodb://localhost/playground', {useNewUrlParser: true})
+mongoose.connect('mongodb://localhost/playground', { useNewUrlParser: true, useUnifiedTopology: true } )
     .then(() => console.log('Connected to MongoDB...'))
     .catch(err => console.error('Could not connect to MongoDB', err))
 
 const courseSchema = new mongoose.Schema({
-    name: String,
+    name: { 
+        type: String, 
+        required: true,
+        minlength: 5,
+        maxlength: 125,
+        // match: /pattern/
+    },
+    category: {
+        type: String, 
+        required: true,
+        enum: ['web', 'mobile', 'network'],
+        lowercase: true,
+        // uppercase: true,
+        trim: true
+    },
     author: String,
-    tags: [String],
+    tags: {
+        type: Array,
+        validate: {
+            validator: async function(v) {
+                //Async work
+                setTimeout(() => {
+                    console.log('Doing async work...')
+                }, 1000)
+                const result = v && v.length > 0
+                if (!result) return Promise.reject(new Error('Validation failed bitch'))
+            },
+            message: 'lol'
+        }
+    },
     date: {type: Date, default: Date.now},
-    isPublished: Boolean
+    isPublished: Boolean,
+    price: {
+        type: Number,
+        required: function() { return this.isPublished },
+        min: 10,
+        max: 200, //same for dates
+        get: v => Math.round(v),
+        set: v => Math.round(v)
+    }
 })
+
 
 const Course = mongoose.model('Course', courseSchema)
 
 async function createCourse(){
     const course = new Course({
         name: "Angular Course",
+        category: 'web',
         author: "Mosh",
-        tags: ['angular', 'frontend'],
-        isPublished: true
+        tags: ['frontend'],
+        isPublished: true,
+        price: 15.8
     })
-    const result = await course.save()
-    console.log(result)
+
+    // try{
+    //     // await course.validate().catch(error => {
+    //     //     assert.equal(error.errors['tags'].message, 'A course should have at least one tag')
+    //     // })
+    // } catch (ex){
+    //     for (field in ex.errors)
+    //         console.log(ex.errors[field].message)
+    // }
+    
+    await course.save()
+        .then(result => console.log(result))
+        .catch(error => console.log(error.message))
 }
 
 async function getCourses(){
@@ -72,7 +121,7 @@ async function updateCourse(id){
     // console.log(result)
 }
 
-updateCourse('5e8321e14bedb514b4116044')
+createCourse()
 
     // eq - equal
     // ne - not equal
